@@ -105,7 +105,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
                     return new ReusableKryo();
                 };
             };
-    private static final boolean DEFAULT_READ_YOUR_WRITE_SUPPORT;        
+    private static final boolean DEFAULT_READ_AFTER_WRITE_SUPPORT;        
     private static final long DEFAULT_READ_CAPACITY_PER_SECOND;
     private static final long DEFAULT_WRITE_CAPACITY_PER_SECOND;
     private static final AmazonDynamoDB DYNAMODB;
@@ -123,13 +123,13 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
             
             //////////////////////////////////////////////////////////////
             
-            boolean readYourWriteSupport = false;
-            String readYourWriteSupportProp = 
-                    (String) dynaCastProps.get(DynaCastConfigs.READ_YOUR_WRITE_SUPPORT);
-            if (readYourWriteSupportProp != null) {
-                readYourWriteSupport = Boolean.parseBoolean(readYourWriteSupportProp);
+            boolean readAfterWriteSupport = false;
+            String readAfterWriteSupportProp = 
+                    (String) dynaCastProps.get(DynaCastConfigs.READ_AFTER_WRITE_SUPPORT);
+            if (readAfterWriteSupportProp != null) {
+                readAfterWriteSupport = Boolean.parseBoolean(readAfterWriteSupportProp);
             }
-            DEFAULT_READ_YOUR_WRITE_SUPPORT = readYourWriteSupport;
+            DEFAULT_READ_AFTER_WRITE_SUPPORT = readAfterWriteSupport;
             
             //////////////////////////////////////////////////////////////
             
@@ -194,7 +194,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
     private final Table shardStateTable;
     private final Table dataTable;
     private final AmazonDynamoDBStreamsClient dataStreams;
-    private final boolean readYourWriteSupport;        
+    private final boolean readAfterWriteSupport;        
     private final long readCapacityPerSecond;
     private final long writeCapacityPerSecond;
     
@@ -233,10 +233,10 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
         /////////////////////////////////////////////////////////////////
         
         if (properties != null) {
-            if (properties.get(DynaCastConfigs.READ_YOUR_WRITE_SUPPORT) != null) {
-                readYourWriteSupport = Boolean.parseBoolean(properties.get(DynaCastConfigs.READ_YOUR_WRITE_SUPPORT).toString());
+            if (properties.get(DynaCastConfigs.READ_AFTER_WRITE_SUPPORT) != null) {
+                readAfterWriteSupport = Boolean.parseBoolean(properties.get(DynaCastConfigs.READ_AFTER_WRITE_SUPPORT).toString());
             } else {
-                readYourWriteSupport = DEFAULT_READ_YOUR_WRITE_SUPPORT;
+                readAfterWriteSupport = DEFAULT_READ_AFTER_WRITE_SUPPORT;
             }
             
             if (properties.get(DynaCastConfigs.READ_CAPACITY_PER_SECOND) != null) {
@@ -251,7 +251,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
                 writeCapacityPerSecond = DEFAULT_WRITE_CAPACITY_PER_SECOND;
             }
         } else {
-            readYourWriteSupport = DEFAULT_READ_YOUR_WRITE_SUPPORT;
+            readAfterWriteSupport = DEFAULT_READ_AFTER_WRITE_SUPPORT;
             readCapacityPerSecond = DEFAULT_READ_CAPACITY_PER_SECOND;
             writeCapacityPerSecond = DEFAULT_WRITE_CAPACITY_PER_SECOND;
         }
@@ -774,7 +774,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
 
     @Override
     public void put(K key, V value) {
-        if (readYourWriteSupport) {
+        if (readAfterWriteSupport) {
             dataCache.remove(key);
         }
         
@@ -799,7 +799,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
     
     @Override
     public boolean replace(K key, V oldValue, V newValue) {
-        if (readYourWriteSupport) {
+        if (readAfterWriteSupport) {
             dataCache.remove(key);
         }
         
@@ -850,7 +850,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
 
     @Override
     public void remove(K key) {
-        if (readYourWriteSupport) {
+        if (readAfterWriteSupport) {
             dataCache.remove(key);
         }
         
@@ -865,7 +865,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
     
     @Override
     public void clear() {
-        if (readYourWriteSupport) {
+        if (readAfterWriteSupport) {
             dataCache.removeAll();
         }
         
