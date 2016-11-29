@@ -21,6 +21,8 @@ public interface DynaCastConfigs {
     
     String WRITE_CAPACITY_PER_SECOND = "dynacast.storage.distributed.writeCapacityPerSecond"; 
     
+    String CLUSTER_NAME = "dynacast.storage.distributed.clusterName";
+    
     String READ_AFTER_WRITE_SUPPORT = "dynacast.storage.distributed.readAfterWriteSupport";
     
     String CLUSTER_HOSTING_ON_AWS = "dynacast.storage.distributed.clusterHostingOnAWS";
