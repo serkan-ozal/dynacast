@@ -54,8 +54,8 @@ These properties can be specified as system property or can be given from **`aws
 
 3.2. DynaCast Configurations
 --------------
-* **`dynacast.storage.distributed.readCapacityPerSecond:`** Configures expected maxiumum read capacity to provision required throughput from AWS's **DynamoDB**. Default value is `1000`.
-* **`"dynacast.storage.distributed.writeCapacityPerSecond:`** Configures expected maxiumum write capacity to provision required throughput from AWS's **DynamoDB**. Default value is `100`.
+* **`dynacast.storage.distributed.readCapacityPerSecond:`** Configures expected maxiumum read capacity to provision required throughput from **AWS DynamoDB**. Default value is `1000`.
+* **`"dynacast.storage.distributed.writeCapacityPerSecond:`** Configures expected maxiumum write capacity to provision required throughput from **AWS DynamoDB**. Default value is `100`.
 * **`dynacast.storage.distributed.clusterName:`** Configures name of the cluster. If you want to isolate each cluster from other on the same environment, you must configure cluster name via this property. Default value is `___DynaCastDistStoreCluster___`.
 * **`dynacast.storage.distributed.readAfterWriteSupport:`** Enables **`read-after-write`** consistency (See [here](https://en.wikipedia.org/wiki/Consistency_model#Read-your-writes_Consistency) and [here](http://www.dbms2.com/2010/05/01/ryw-read-your-writes-consistency) for more details) support. Default value is `false`.
 * **`dynacast.storage.distributed.clusterHostingOnAWS:`** Enables AWS based discovery support when there are multiple nodes with **DynaCase**. By this property enabled, **Hazelcast** instances, which are used by **DynaCast** internally for caching data, discovers each other (IPs of other nodes) through AWS API and forms a cluster. Default value is `false`.
