@@ -153,8 +153,15 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
             DYNAMODB = new AmazonDynamoDBClient(AWS_CREDENTIALS);
             
             Config config = new Config();
-            config.getGroupConfig().setName("___DynaCastDistStoreCluster___");
             
+            String clusterNameProp = 
+                    dynaCastProps.getProperty(DynaCastConfigs.CLUSTER_NAME);
+            if (clusterNameProp != null) {
+                config.getGroupConfig().setName(clusterNameProp);
+            } else {
+                config.getGroupConfig().setName("___DynaCastDistStoreCluster___");
+            }
+
             boolean clusterHostingOnAWS = false;
             String clusterHostingOnAWSProp = 
                     (String) dynaCastProps.get(DynaCastConfigs.CLUSTER_HOSTING_ON_AWS);
