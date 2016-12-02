@@ -32,13 +32,14 @@ public class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
     private final NearCache nearCache;
     private final DynaCastDistributedStorage<K, V> distributedStorage;
     
-    public DynaCastTieredStorage(String name, Map<String, Object> properties) {
+    public DynaCastTieredStorage(String name, DynaCastStorageType storageType, Map<String, Object> properties) {
         this.name = name;
         this.nearCache = 
                 new NearCache(new DynaCastLocalStorage<K, V>(name));
         this.distributedStorage = 
                 new DynaCastDistributedStorage<K, V>(
                         name, 
+                        storageType,
                         properties,
                         new TieredStorageAwareStorageChangeListener());
     }

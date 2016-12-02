@@ -23,10 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +36,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.cache.Cache;
 import javax.cache.CacheException;
-import javax.cache.CacheManager;
 import javax.cache.configuration.Factory;
 import javax.cache.integration.CacheLoader;
 import javax.cache.integration.CacheLoaderException;
@@ -49,7 +50,6 @@ import com.amazonaws.AbortedException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreamsClient;
 import com.amazonaws.services.dynamodbv2.document.Expected;
@@ -84,111 +84,20 @@ import com.amazonaws.services.dynamodbv2.model.TableDescription;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.FastInput;
 import com.esotericsoftware.kryo.io.FastOutput;
-import com.hazelcast.cache.impl.HazelcastServerCachingProvider;
-import com.hazelcast.config.AwsConfig;
 import com.hazelcast.config.CacheConfig;
-import com.hazelcast.config.Config;
-import com.hazelcast.config.JoinConfig;
-import com.hazelcast.core.Hazelcast;
-import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IExecutorService;
+import com.hazelcast.core.Member;
 import com.hazelcast.core.PartitionService;
 
 public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
 
     private static final Logger LOGGER = Logger.getLogger(DynaCastDistributedStorage.class);
-    private static final AWSCredentials AWS_CREDENTIALS;
-    private static final HazelcastInstance HZ;
-    private static final CacheManager CM;
     private static final ThreadLocal<ReusableKryo> THREAD_LOCAL_KRYO = 
             new ThreadLocal<ReusableKryo>() {
                 protected ReusableKryo initialValue() {
                     return new ReusableKryo();
                 };
             };
-    private static final boolean DEFAULT_READ_AFTER_WRITE_SUPPORT;        
-    private static final long DEFAULT_READ_CAPACITY_PER_SECOND;
-    private static final long DEFAULT_WRITE_CAPACITY_PER_SECOND;
-    private static final AmazonDynamoDB DYNAMODB;
-    
-    static {
-        try {
-            Properties awsProps = getProperties("aws-credentials.properties");
-            String accessKey = awsProps.getProperty("aws.accessKey");
-            String secretKey = awsProps.getProperty("aws.secretKey");
-            AWS_CREDENTIALS = new BasicAWSCredentials(accessKey, secretKey);
-            
-            //////////////////////////////////////////////////////////////
-            
-            Properties dynaCastProps = getProperties("dynacast.properties");
-            
-            //////////////////////////////////////////////////////////////
-            
-            boolean readAfterWriteSupport = false;
-            String readAfterWriteSupportProp = 
-                    (String) dynaCastProps.get(DynaCastConfigs.READ_AFTER_WRITE_SUPPORT);
-            if (readAfterWriteSupportProp != null) {
-                readAfterWriteSupport = Boolean.parseBoolean(readAfterWriteSupportProp);
-            }
-            DEFAULT_READ_AFTER_WRITE_SUPPORT = readAfterWriteSupport;
-            
-            //////////////////////////////////////////////////////////////
-            
-            String readCapacityPerSecondProp = 
-                    dynaCastProps.getProperty(DynaCastConfigs.READ_CAPACITY_PER_SECOND);
-            if (readCapacityPerSecondProp != null) {
-                DEFAULT_READ_CAPACITY_PER_SECOND = Long.parseLong(readCapacityPerSecondProp);
-            } else {
-                DEFAULT_READ_CAPACITY_PER_SECOND = 1000;
-            }
-            String writeCapacityPerSecondProp = 
-                    dynaCastProps.getProperty(DynaCastConfigs.WRITE_CAPACITY_PER_SECOND);
-            if (writeCapacityPerSecondProp != null) {
-                DEFAULT_WRITE_CAPACITY_PER_SECOND = Long.parseLong(writeCapacityPerSecondProp);
-            } else {
-                DEFAULT_WRITE_CAPACITY_PER_SECOND = 100;
-            }
-            
-            //////////////////////////////////////////////////////////////
-            
-            DYNAMODB = new AmazonDynamoDBClient(AWS_CREDENTIALS);
-            
-            Config config = new Config();
-            
-            String clusterNameProp = 
-                    dynaCastProps.getProperty(DynaCastConfigs.CLUSTER_NAME);
-            if (clusterNameProp != null) {
-                config.getGroupConfig().setName(clusterNameProp);
-            } else {
-                config.getGroupConfig().setName("___DynaCastDistStoreCluster___");
-            }
-
-            boolean clusterHostingOnAWS = false;
-            String clusterHostingOnAWSProp = 
-                    (String) dynaCastProps.get(DynaCastConfigs.CLUSTER_HOSTING_ON_AWS);
-            if (clusterHostingOnAWSProp != null) {
-                clusterHostingOnAWS = Boolean.parseBoolean(clusterHostingOnAWSProp);
-            }
-            if (clusterHostingOnAWS) {
-                JoinConfig joinConfig = config.getNetworkConfig().getJoin();
-                joinConfig.getTcpIpConfig().setEnabled(false);
-                joinConfig.getMulticastConfig().setEnabled(false);
-                AwsConfig awsConfig = joinConfig.getAwsConfig();
-                awsConfig.setEnabled(true);
-                awsConfig.setAccessKey(accessKey);
-                awsConfig.setSecretKey(secretKey);
-                String clusterRegionOnAWSProp = 
-                        (String) dynaCastProps.get(DynaCastConfigs.CLUSTER_REGION_ON_AWS);
-                if (clusterRegionOnAWSProp != null) {
-                    awsConfig.setRegion(clusterRegionOnAWSProp);
-                }
-            }
-            
-            HZ = Hazelcast.newHazelcastInstance(config);
-            CM = HazelcastServerCachingProvider.createCachingProvider(HZ).getCacheManager();
-        } catch (Throwable t) {
-            throw new IllegalStateException("Unable to initialize distributed storage support!", t);
-        }
-    }
     
     private final String name;
     
@@ -221,21 +130,22 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
     
     private final String uuid = UUID.randomUUID().toString();
     
-    public DynaCastDistributedStorage(String name, Map<String, Object> properties) {
-        this(name, properties, null);
+    public DynaCastDistributedStorage(String name, DynaCastStorageType storageType, Map<String, Object> properties) {
+        this(name, storageType, properties, null);
     }
    
     public DynaCastDistributedStorage(
             String name, 
+            DynaCastStorageType storageType,
             Map<String, Object> properties, 
             StorageMutationListener<K, V> storageMutationListener) {
         this.name = name;
         
         /////////////////////////////////////////////////////////////////
         
-        this.dataCacheName = "DynaCastDistStoreDataCache" + "_" + name + "___";
-        this.shardStateTableName = "___" + "DynaCastDistStoreShardStateTable" + "_" + name + "___";
-        this.dataTableName = "___" + "DynaCastDistStoreDataTable" + "_" + name + "___";
+        this.dataCacheName = "DynaCastDistStoreDataCache" + "-" + storageType.name() + "-" + name;
+        this.shardStateTableName = "DynaCastDistStoreShardStateTable" + "-" + storageType.name() + "-" + name;
+        this.dataTableName = "DynaCastDistStoreDataTable" + "-" + storageType.name() + "-" + name;
 
         /////////////////////////////////////////////////////////////////
         
@@ -243,42 +153,67 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
             if (properties.get(DynaCastConfigs.READ_AFTER_WRITE_SUPPORT) != null) {
                 readAfterWriteSupport = Boolean.parseBoolean(properties.get(DynaCastConfigs.READ_AFTER_WRITE_SUPPORT).toString());
             } else {
-                readAfterWriteSupport = DEFAULT_READ_AFTER_WRITE_SUPPORT;
+                readAfterWriteSupport = DynaCastStorageProvider.DEFAULT_READ_AFTER_WRITE_SUPPORT;
             }
             
             if (properties.get(DynaCastConfigs.READ_CAPACITY_PER_SECOND) != null) {
                 readCapacityPerSecond = Long.parseLong(properties.get(DynaCastConfigs.READ_CAPACITY_PER_SECOND).toString());
             } else {
-                readCapacityPerSecond = DEFAULT_READ_CAPACITY_PER_SECOND;
+                readCapacityPerSecond = DynaCastStorageProvider.DEFAULT_READ_CAPACITY_PER_SECOND;
             }
             
             if (properties.get(DynaCastConfigs.WRITE_CAPACITY_PER_SECOND) != null) {
                 writeCapacityPerSecond = Long.parseLong(properties.get(DynaCastConfigs.WRITE_CAPACITY_PER_SECOND).toString());
             } else {
-                writeCapacityPerSecond = DEFAULT_WRITE_CAPACITY_PER_SECOND;
+                writeCapacityPerSecond = DynaCastStorageProvider.DEFAULT_WRITE_CAPACITY_PER_SECOND;
             }
         } else {
-            readAfterWriteSupport = DEFAULT_READ_AFTER_WRITE_SUPPORT;
-            readCapacityPerSecond = DEFAULT_READ_CAPACITY_PER_SECOND;
-            writeCapacityPerSecond = DEFAULT_WRITE_CAPACITY_PER_SECOND;
+            readAfterWriteSupport = DynaCastStorageProvider.DEFAULT_READ_AFTER_WRITE_SUPPORT;
+            readCapacityPerSecond = DynaCastStorageProvider.DEFAULT_READ_CAPACITY_PER_SECOND;
+            writeCapacityPerSecond = DynaCastStorageProvider.DEFAULT_WRITE_CAPACITY_PER_SECOND;
         }
         
         /////////////////////////////////////////////////////////////////
+        
+        if (DynaCastStorageProvider.CLIEN_MODE_ENABLED) {
+            IExecutorService executorService = 
+                    DynaCastStorageProvider.HZ.getExecutorService("dynacast");
+            Map<Member, Future<Void>> result = 
+                    executorService.submitToAllMembers(new DynaCastStorageInitializer(name, storageType));
+            for (Future<Void> future : result.values()) {
+                try {
+                    future.wait();
+                } catch (InterruptedException e) {
+                }
+            }
+        }
 
+        Cache<K, V> cache;
         CacheConfig<K, V> cacheConfig = new CacheConfig<K, V>(dataCacheName);
         cacheConfig.setCacheLoaderFactory(new DynamodbAwareCacheLoaderFactory<K, V>(dataTableName));
-        Cache<K, V> cache;
         try {
-            cache = CM.createCache(dataCacheName, cacheConfig);
+            cache = DynaCastStorageProvider.CM.getCache(dataCacheName);
+            if (cache == null) {
+                cache = DynaCastStorageProvider.CM.createCache(dataCacheName, cacheConfig);
+            }    
         } catch (CacheException e) {
-            cache = CM.getCache(dataCacheName);
+            cache = DynaCastStorageProvider.CM.getCache(dataCacheName);
+        }  
+        if (cache == null) {
+            throw new IllegalStateException("Unable to get or create cache for distributed storage " + name);
         }
         dataCache = cache;
         
         /////////////////////////////////////////////////////////////////
         
-        dataStreams = new AmazonDynamoDBStreamsClient(AWS_CREDENTIALS);
-        shardStateTable = ensureShardStateTableAvailable();
+        if (DynaCastStorageProvider.CLIEN_MODE_ENABLED) {
+            dataStreams = null;
+            shardStateTable = null;
+        } else {
+            dataStreams = new AmazonDynamoDBStreamsClient(DynaCastStorageProvider.AWS_CREDENTIALS);
+            shardStateTable = ensureShardStateTableAvailable();
+        }
+        
         dataTable = ensureDataTableAvailable();
 
         /////////////////////////////////////////////////////////////////
@@ -286,6 +221,42 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
         if (storageMutationListener != null) {
             registerStorageMutationListener(storageMutationListener);
         }
+    }
+    
+    @SuppressWarnings("serial")
+    public static class DynaCastStorageInitializer implements Callable<Void>, Serializable {
+
+        private final String storageName;
+        private final DynaCastStorageType storageType;
+        
+        public DynaCastStorageInitializer(String storageName, DynaCastStorageType storageType) {
+            this.storageName = storageName;
+            this.storageType = storageType;
+        }
+
+        @Override
+        public Void call() throws Exception {
+            DynaCastStorageProvider.getOrCreateStorage(storageName, storageType);
+            return null;
+        }
+        
+    }
+    
+    @SuppressWarnings("serial")
+    public static class DynaCastStorageDestroyer implements Callable<Void>, Serializable {
+
+        private final String storageName;
+        
+        public DynaCastStorageDestroyer(String storageName) {
+            this.storageName = storageName;
+        }
+
+        @Override
+        public Void call() throws Exception {
+            DynaCastStorageProvider.deleteStorage(storageName, true);
+            return null;
+        }
+        
     }
     
     @SuppressWarnings("serial")
@@ -370,7 +341,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
     private Table ensureShardStateTableAvailable() {
         boolean tableExist = false;
         try {
-            DYNAMODB.describeTable(shardStateTableName);
+            DynaCastStorageProvider.DYNAMODB.describeTable(shardStateTableName);
             tableExist = true;
         } catch (ResourceNotFoundException e) {
         }
@@ -405,7 +376,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
                                 "Creating DynamoDB shard state table (%s) creation, because it is not exist", 
                                 shardStateTableName));
                 
-                DYNAMODB.createTable(createTableRequest);
+                DynaCastStorageProvider.DYNAMODB.createTable(createTableRequest);
             } catch (ResourceInUseException e) { 
                 LOGGER.info(
                         String.format(
@@ -421,7 +392,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
         
         while (true) {
             DescribeTableResult describeTableResult = 
-                    DYNAMODB.describeTable(shardStateTableName);
+                    DynaCastStorageProvider.DYNAMODB.describeTable(shardStateTableName);
             TableDescription tableDescription = describeTableResult.getTable();
             if ("ACTIVE".equals(tableDescription.getTableStatus())) {
                 break;
@@ -436,13 +407,13 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
             }
         } 
 
-        return new Table(DYNAMODB, shardStateTableName);
+        return new Table(DynaCastStorageProvider.DYNAMODB, shardStateTableName);
     }
 
     private Table ensureDataTableAvailable() {
         boolean tableExist = false;
         try {
-            DYNAMODB.describeTable(dataTableName);
+            DynaCastStorageProvider.DYNAMODB.describeTable(dataTableName);
             tableExist = true;
         } catch (ResourceNotFoundException e) {
         }
@@ -482,7 +453,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
                                 "Creating DynamoDB data table (%s) creation, because it is not exist", 
                                 dataTableName));
                 
-                DYNAMODB.createTable(createTableRequest);
+                DynaCastStorageProvider.DYNAMODB.createTable(createTableRequest);
             } catch (ResourceInUseException e) { 
                 LOGGER.info(
                         String.format(
@@ -498,7 +469,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
         
         while (true) {
             DescribeTableResult describeTableResult = 
-                    DYNAMODB.describeTable(dataTableName);
+                    DynaCastStorageProvider.DYNAMODB.describeTable(dataTableName);
             TableDescription tableDescription = describeTableResult.getTable();
             if ("ACTIVE".equals(tableDescription.getTableStatus())) {
                 break;
@@ -517,7 +488,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
                 new StreamListener(), 
                 0, 1000, TimeUnit.MILLISECONDS);
         
-        return new Table(DYNAMODB, dataTableName);
+        return new Table(DynaCastStorageProvider.DYNAMODB, dataTableName);
     }
     
     private static Properties getProperties(String propFileName) throws IOException {
@@ -555,7 +526,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
             if (inProgress.compareAndSet(false, true)) {
                 try {
                     DescribeTableResult describeTableResult = 
-                            DYNAMODB.describeTable(dataTableName);
+                            DynaCastStorageProvider.DYNAMODB.describeTable(dataTableName);
                     String tableStreamArn = describeTableResult.getTable().getLatestStreamArn();
                     DescribeStreamResult describeStreamResult = 
                             dataStreams.describeStream(
@@ -563,7 +534,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
                     String streamArn = describeStreamResult.getStreamDescription().getStreamArn();
                     List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
                     
-                    PartitionService partitionService = HZ.getPartitionService();
+                    PartitionService partitionService = DynaCastStorageProvider.HZ.getPartitionService();
                     
                     for (Shard shard : shards) {
                         if (Thread.currentThread().isInterrupted()) {
@@ -897,7 +868,7 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
         }
         
         try {
-            CM.destroyCache(dataCacheName);
+            DynaCastStorageProvider.CM.destroyCache(dataCacheName);
         } catch (IllegalStateException e) {
         }
         
@@ -918,23 +889,25 @@ public class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
         } catch (ResourceNotFoundException e) {
         }  
         
-        try {
-            shardStateTable.delete();
-            while (true) {
-                shardStateTable.describe();
-                LOGGER.info(
-                        String.format(
-                                "DynamoDB shard state table (%s) is still exist and delete is in progress, " + 
-                                "waiting until it has been destroyed ...", 
-                                dataTableName));
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                }
-            } 
-        } catch (ResourceNotFoundException e) {
-        }  
-
+        if (shardStateTable != null) {
+            try {
+                shardStateTable.delete();
+                while (true) {
+                    shardStateTable.describe();
+                    LOGGER.info(
+                            String.format(
+                                    "DynamoDB shard state table (%s) is still exist and delete is in progress, " + 
+                                    "waiting until it has been destroyed ...", 
+                                    dataTableName));
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e) {
+                    }
+                } 
+            } catch (ResourceNotFoundException e) {
+            }  
+        }
+        
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Distributed storage has been destroyed");
         }

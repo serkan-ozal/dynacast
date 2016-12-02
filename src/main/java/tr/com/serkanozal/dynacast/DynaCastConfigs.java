@@ -29,4 +29,6 @@ public interface DynaCastConfigs {
     
     String CLUSTER_REGION_ON_AWS = "dynacast.storage.distributed.clusterRegionOnAWS";
     
+    String CLIEN_MODE_ENABLED = "dynacast.storage.distributed.clientModeEnabled";
+    
 }
