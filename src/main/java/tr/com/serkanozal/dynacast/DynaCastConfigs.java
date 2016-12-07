@@ -17,18 +17,20 @@ package tr.com.serkanozal.dynacast;
 
 public interface DynaCastConfigs {
 
-    String READ_CAPACITY_PER_SECOND = "dynacast.storage.distributed.readCapacityPerSecond";
+    String READ_CAPACITY_PER_SECOND = "dynacast.readCapacityPerSecond";
     
-    String WRITE_CAPACITY_PER_SECOND = "dynacast.storage.distributed.writeCapacityPerSecond"; 
+    String WRITE_CAPACITY_PER_SECOND = "dynacast.writeCapacityPerSecond"; 
     
-    String CLUSTER_NAME = "dynacast.storage.distributed.clusterName";
+    String CLUSTER_NAME = "dynacast.clusterName";
     
-    String READ_AFTER_WRITE_SUPPORT = "dynacast.storage.distributed.readAfterWriteSupport";
+    String READ_AFTER_WRITE_SUPPORT = "dynacast.readAfterWriteSupport";
     
-    String CLUSTER_HOSTING_ON_AWS = "dynacast.storage.distributed.clusterHostingOnAWS";
+    String CLUSTER_HOSTING_ON_AWS = "dynacast.clusterHostingOnAWS";
     
-    String CLUSTER_REGION_ON_AWS = "dynacast.storage.distributed.clusterRegionOnAWS";
+    String CLUSTER_REGION_ON_AWS = "dynacast.clusterRegionOnAWS";
     
-    String CLIEN_MODE_ENABLED = "dynacast.storage.distributed.clientModeEnabled";
+    String USE_PUBLIC_IPS_ON_AWS = "dynacast.usePublicIPsOnAWS";
+    
+    String CLIEN_MODE_ENABLED = "dynacast.clientModeEnabled";
     
 }

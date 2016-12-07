@@ -24,7 +24,7 @@ import org.junit.Test;
 
 import tr.com.serkanozal.dynacast.storage.DynaCastStorage;
 import tr.com.serkanozal.dynacast.storage.DynaCastStorageType;
-import tr.com.serkanozal.dynacast.storage.impl.DynaCastStorageProvider;
+import tr.com.serkanozal.dynacast.storage.impl.DynaCastStorageManager;
 
 public abstract class BaseDynaCastStorageTest {
 
@@ -35,9 +35,9 @@ public abstract class BaseDynaCastStorageTest {
     @Before
     public void setup() {
         storageType = getStorageType();
-        storage1 = DynaCastStorageProvider.createStorage("TestStorage", storageType);
+        storage1 = DynaCastStorageManager.createStorage("TestStorage", storageType);
         storage1.clear();
-        storage2 = DynaCastStorageProvider.createStorage("TestStorage", storageType);
+        storage2 = DynaCastStorageManager.createStorage("TestStorage", storageType);
         storage2.clear();
     }
     

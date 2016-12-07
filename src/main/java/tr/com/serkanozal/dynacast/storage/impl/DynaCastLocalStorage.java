@@ -24,7 +24,7 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import tr.com.serkanozal.dynacast.storage.DynaCastStorage;
 import tr.com.serkanozal.dynacast.storage.DynaCastStorageType;
 
-public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
+class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
 
     private static final Logger LOGGER = Logger.getLogger(DynaCastLocalStorage.class);
     
@@ -35,7 +35,7 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
     private NonBlockingHashMap<K, V> map = 
             new NonBlockingHashMap<K, V>();
     
-    public DynaCastLocalStorage(String name) {
+    DynaCastLocalStorage(String name) {
         this.name = name;
     }
     
@@ -52,7 +52,8 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
     private ConcurrentMap<K, V> provideMap() {
         ConcurrentMap<K, V> m = map;
         if (m == null) {
-            throw new IllegalStateException("Local storage has been already destroyed!");
+            throw new IllegalStateException(
+                    String.format("Local storage '%s' has been already destroyed!", name));
         }
         return m;
     }
@@ -63,7 +64,8 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
         
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(
-                    String.format("Value %s has been retrieved from local storage with key %s", key, value));
+                    String.format("Value %s has been retrieved from the local storage '%s' with key %s", 
+                                  value, name, key));
         }
         
         return value;
@@ -83,7 +85,8 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
             
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(
-                        String.format("Value %s has been put into local storage with key %s", key, value));
+                        String.format("Value %s has been put into the local storage '%s' with key %s", 
+                                      value, name, key));
             }
         }    
     }
@@ -104,7 +107,8 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
         if (replaced && LOGGER.isDebugEnabled()) {
             LOGGER.debug(
                     String.format("Old value %s has been replaced with new value %s " + 
-                                  "assigned to key %s", oldValue, newValue, key));
+                                  "assigned to key %s in the local storage '%s'", 
+                                  oldValue, newValue, key, name));
         }
         
         return replaced;
@@ -116,7 +120,8 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
         
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(
-                    String.format("Value has been removed from local storage with key %s", key));
+                    String.format("Value has been removed from the local storage '%s' with key %s", 
+                                  name, key));
         }
     }
     
@@ -129,7 +134,7 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
         }
         
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Local storage has been cleared");
+            LOGGER.debug(String.format("Local storage '%s' has been cleared", name));
         }
     }
     
@@ -142,9 +147,7 @@ public class DynaCastLocalStorage<K, V> implements DynaCastStorage<K, V> {
         clear();
         map = null;
         
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Local storage has been destroyed");
-        }
+        LOGGER.info(String.format("Local storage '%s' has been destroyed", name));
     }
     
 }

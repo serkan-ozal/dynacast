@@ -7,7 +7,7 @@ public class DynaCastDemo {
 
     public static void main(String[] args) {
         DynaCastStorage<Integer, String> storage = 
-                Dynacast.getOrCreateStorage("MyStorage", DynaCastStorageType.TIERED);
+                DynaCast.getOrCreateStorage("MyStorage", DynaCastStorageType.TIERED);
         
         ///////////////////////////////////////////////////////////////////////
         

@@ -24,15 +24,16 @@ import tr.com.serkanozal.dynacast.storage.DynaCastStorage;
 import tr.com.serkanozal.dynacast.storage.DynaCastStorageType;
 import tr.com.serkanozal.dynacast.storage.impl.DynaCastDistributedStorage.StorageMutationListener;
 
-public class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
+class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
 
     private static final Logger LOGGER = Logger.getLogger(DynaCastTieredStorage.class);
     
     private final String name;
     private final NearCache nearCache;
     private final DynaCastDistributedStorage<K, V> distributedStorage;
+    private volatile boolean destroyed = false;
     
-    public DynaCastTieredStorage(String name, DynaCastStorageType storageType, Map<String, Object> properties) {
+    DynaCastTieredStorage(String name, DynaCastStorageType storageType, Map<String, Object> properties) {
         this.name = name;
         this.nearCache = 
                 new NearCache(new DynaCastLocalStorage<K, V>(name));
@@ -43,12 +44,7 @@ public class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
                         properties,
                         new TieredStorageAwareStorageChangeListener());
     }
-    
-    @Override
-    public String getName() {
-        return name;
-    }
-    
+
     private class TieredStorageAwareStorageChangeListener implements StorageMutationListener<K, V> {
         
         private void invalidate(K key) {
@@ -62,7 +58,8 @@ public class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(
                         String.format("Entry has been invalidated from " + 
-                                      "near-cache of tiered storage with key %s", key));
+                                      "near-cache of the tiered storage '%s' with key %s", 
+                                      name, key));
             }
         }
         
@@ -81,163 +78,6 @@ public class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
             invalidate(key);
         }
         
-    }
-    
-    @Override
-    public DynaCastStorageType getType() {
-        return DynaCastStorageType.TIERED;
-    }
-
-    @Override
-    public V get(K key) {
-        V value = nearCache.get(key);
-        if (value != null) {
-            return value;
-        }
-        
-        long ownId = nearCache.tryOwn(key);
-        try {
-            value = distributedStorage.get(key);
-            if (value != null) {
-                nearCache.putIfAvailable(ownId, key, value);
-            }    
-        } finally {
-            nearCache.releaseIfOwned(ownId, key);
-        }
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(
-                    String.format("Value %s has been retrieved from tiered storage with key %s", key, value));
-        }
-        
-        return value;
-    }
-    
-    @Override
-    public V refresh(K key) {
-        V value = null;
-        long ownId = nearCache.tryOwn(key);
-        try {
-            nearCache.remove(key);
-            value = distributedStorage.get(key);
-            if (value != null) {
-                nearCache.putIfAvailable(ownId, key, value);
-            }    
-        } finally {
-            nearCache.releaseIfOwned(ownId, key);
-        }
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(
-                    String.format("Value %s has been refreshed from tiered storage with key %s", key, value));
-        }
-        
-        return value;
-    }
-
-    @Override
-    public void put(K key, V value) {
-        if (value == null) {
-            remove(key);
-        } else {
-            long ownId = nearCache.tryOwn(key);
-            try {
-                distributedStorage.put(key, value);
-                nearCache.putIfAvailable(ownId, key, value);  
-            } finally {
-                nearCache.releaseIfOwned(ownId, key);
-            }
-            
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(
-                        String.format("Value %s has been put into tiered storage with key %s", key, value));
-            }
-        }
-    }
-    
-    @Override
-    public boolean replace(K key, V oldValue, V newValue) {
-        boolean replaced = false;
-        if (oldValue == null && newValue != null) {
-            long ownId = nearCache.tryOwn(key);
-            try {
-                if (distributedStorage.replace(key, oldValue, newValue)) {
-                    nearCache.putIfAvailable(ownId, key, newValue); 
-                    replaced = true;
-                }
-            } finally {
-                nearCache.releaseIfOwned(ownId, key);
-            }
-        } else if (oldValue != null && newValue == null) {
-            long ownId = nearCache.tryOwn(key);
-            try {
-                if (distributedStorage.replace(key, oldValue, newValue)) {
-                    nearCache.remove(key);
-                    replaced = true;
-                }
-            } finally {
-                nearCache.releaseIfOwned(ownId, key);
-            }
-        } else if (oldValue != null && newValue != null) {
-            long ownId = nearCache.tryOwn(key);
-            try {
-                if (distributedStorage.replace(key, oldValue, newValue)) {
-                    nearCache.putIfAvailable(ownId, key, newValue); 
-                    replaced = true;
-                }
-            } finally {
-                nearCache.releaseIfOwned(ownId, key);
-            }
-        }    
-        
-        if (replaced && LOGGER.isDebugEnabled()) {
-            LOGGER.debug(
-                    String.format("Old value %s has been replaced with new value %s " + 
-                                  "assigned to key %s", oldValue, newValue, key));
-        }
-        
-        return replaced;
-    }
-
-    @Override
-    public void remove(K key) {
-        long ownId = nearCache.tryOwn(key);
-        try {
-            distributedStorage.remove(key);
-            nearCache.remove(key);
-        } finally {
-            nearCache.releaseIfOwned(ownId, key);
-        }
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(
-                    String.format("Value has been removed from tiered storage with key %s", key));
-        }
-    }
-    
-    @Override
-    public void clear() {
-        nearCache.ownAll();
-        try {
-            distributedStorage.clear();
-            nearCache.clear();
-        } finally {
-            nearCache.releaseAll();
-        }
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Tiered storage has been cleared");
-        }
-    }
-    
-    @Override
-    public void destroy() {
-        distributedStorage.destroy();
-        nearCache.destroy();
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Tiered storage has been destroyed");
-        }
     }
     
     private class NearCache {
@@ -337,5 +177,197 @@ public class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
         }
 
     }   
+    
+    private void ensureAvailable() {
+        if (destroyed) {
+            throw new IllegalStateException(
+                    String.format("Tiered storage '%s' has been destroyed!", name));
+        }
+    }
+    
+    @Override
+    public String getName() {
+        return name;
+    }
+    
+    @Override
+    public DynaCastStorageType getType() {
+        return DynaCastStorageType.TIERED;
+    }
 
+    @Override
+    public V get(K key) {
+        ensureAvailable();
+        
+        V value = nearCache.get(key);
+        if (value != null) {
+            return value;
+        }
+        
+        long ownId = nearCache.tryOwn(key);
+        try {
+            value = distributedStorage.get(key);
+            if (value != null) {
+                nearCache.putIfAvailable(ownId, key, value);
+            }    
+        } finally {
+            nearCache.releaseIfOwned(ownId, key);
+        }
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    String.format("Value %s has been retrieved from the tiered storage '%s' with key %s", 
+                                  value, name, key));
+        }
+        
+        return value;
+    }
+    
+    @Override
+    public V refresh(K key) {
+        ensureAvailable();
+        
+        V value = null;
+        long ownId = nearCache.tryOwn(key);
+        try {
+            nearCache.remove(key);
+            value = distributedStorage.get(key);
+            if (value != null) {
+                nearCache.putIfAvailable(ownId, key, value);
+            }    
+        } finally {
+            nearCache.releaseIfOwned(ownId, key);
+        }
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    String.format("Value %s has been refreshed from the tiered storage '%s' with key %s", 
+                                  value, name, key));
+        }
+        
+        return value;
+    }
+
+    @Override
+    public void put(K key, V value) {
+        ensureAvailable();
+        
+        if (value == null) {
+            remove(key);
+        } else {
+            long ownId = nearCache.tryOwn(key);
+            try {
+                distributedStorage.put(key, value);
+                nearCache.putIfAvailable(ownId, key, value);  
+            } finally {
+                nearCache.releaseIfOwned(ownId, key);
+            }
+            
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                        String.format("Value %s has been put into the tiered storage '%s' with key %s", 
+                                      value, name, key));
+            }
+        }
+    }
+    
+    @Override
+    public boolean replace(K key, V oldValue, V newValue) {
+        ensureAvailable();
+        
+        boolean replaced = false;
+        if (oldValue == null && newValue != null) {
+            long ownId = nearCache.tryOwn(key);
+            try {
+                if (distributedStorage.replace(key, oldValue, newValue)) {
+                    nearCache.putIfAvailable(ownId, key, newValue); 
+                    replaced = true;
+                }
+            } finally {
+                nearCache.releaseIfOwned(ownId, key);
+            }
+        } else if (oldValue != null && newValue == null) {
+            long ownId = nearCache.tryOwn(key);
+            try {
+                if (distributedStorage.replace(key, oldValue, newValue)) {
+                    nearCache.remove(key);
+                    replaced = true;
+                }
+            } finally {
+                nearCache.releaseIfOwned(ownId, key);
+            }
+        } else if (oldValue != null && newValue != null) {
+            long ownId = nearCache.tryOwn(key);
+            try {
+                if (distributedStorage.replace(key, oldValue, newValue)) {
+                    nearCache.putIfAvailable(ownId, key, newValue); 
+                    replaced = true;
+                }
+            } finally {
+                nearCache.releaseIfOwned(ownId, key);
+            }
+        }    
+        
+        if (replaced && LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    String.format("Old value %s has been replaced with new value %s " + 
+                                  "assigned to key %s in the tiered storage '%s'", 
+                                  oldValue, newValue, key, name));
+        }
+        
+        return replaced;
+    }
+
+    @Override
+    public void remove(K key) {
+        ensureAvailable();
+        
+        long ownId = nearCache.tryOwn(key);
+        try {
+            distributedStorage.remove(key);
+            nearCache.remove(key);
+        } finally {
+            nearCache.releaseIfOwned(ownId, key);
+        }
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    String.format("Value has been removed from the tiered storage '%s' with key %s", 
+                                  name, key));
+        }
+    }
+    
+    @Override
+    public void clear() {
+        ensureAvailable();
+        
+        nearCache.ownAll();
+        try {
+            distributedStorage.clear();
+            nearCache.clear();
+        } finally {
+            nearCache.releaseAll();
+        }
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(String.format("Tiered storage '%s' has been cleared", name));
+        }
+    }
+    
+    @Override
+    public synchronized void destroy() {
+        if (destroyed) {
+            return;
+        }
+        
+        try {
+            distributedStorage.destroy();
+            nearCache.destroy();
+            
+            LOGGER.info(String.format("Tiered storage '%s' has been destroyed", name));
+        } finally {
+            destroyed = true;
+        }
+    }
+    
 }

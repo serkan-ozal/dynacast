@@ -1,9 +1,9 @@
 # dynacast
-Hazelcast cached and synched AWS DynamoDB
+**Hazelcast** cached and synched **AWS DynamoDB**
 
 1. What is DynaCast?
 ==============
-Simply it is for caching **AWS DynamoDB** with **Hazelcast** and keeping them eventually consistent. **DynaCast** is a very simple caching library based on **Hazelcast** (`Cast` comes from here) on top of **AWS DynamoDB** (`Dyna` comes from here) with very basit caching functionalities (get, put, replace, remove) to be used as distributed or tiered (local + distributed). 
+Simply it is for caching **AWS DynamoDB** with **Hazelcast** and keeping them eventually consistent. **DynaCast** is a very simple caching library based on **Hazelcast** (`Cast` comes from here) on top of **AWS DynamoDB** (`Dyna` comes from here) with very basic caching functionalities (get, put, replace, remove) to be used as distributed or tiered (local + distributed). 
 
 **DynaCast** caches data in-memory via **Hazelcast** as distributed internally and persists data into **AWS DynamoDB**. Under the hood, cache data in **Hazelcast** is stored as __eventually consistent__ with **AWS DynamoDB** by receiving mutation events (ordered by the shard/partition) from **AWS DynamoDB Streams** (See [here](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html) for more details about **AWS DynamoDB Streams**). 
 
@@ -11,13 +11,13 @@ Simply it is for caching **AWS DynamoDB** with **Hazelcast** and keeping them ev
 ==============
 In your `pom.xml`, you must add repository and dependency for **DynaCast**. 
 You can change `dynacast.version` to any existing **DynaCast** library version.
-Latest version of **DynaCast** is `1.0.0-SNAPSHOT`.
+Latest version of **DynaCast** is `1.0.1-SNAPSHOT`.
 
 ``` xml
 ...
 <properties>
     ...
-    <samba.version>1.0.0-SNAPSHOT</samba.version>
+    <samba.version>1.0.1-SNAPSHOT</samba.version>
     ...
 </properties>
 ...
@@ -54,12 +54,14 @@ These properties can be specified as system property or can be given from **`aws
 
 3.2. DynaCast Configurations
 --------------
-* **`dynacast.storage.distributed.readCapacityPerSecond:`** Configures expected maxiumum read capacity to provision required throughput from **AWS DynamoDB**. Default value is `1000`.
-* **`"dynacast.storage.distributed.writeCapacityPerSecond:`** Configures expected maxiumum write capacity to provision required throughput from **AWS DynamoDB**. Default value is `100`.
-* **`dynacast.storage.distributed.clusterName:`** Configures name of the cluster. If you want to isolate each cluster from other on the same environment, you must configure cluster name via this property. Default value is `___DynaCastDistStoreCluster___`.
-* **`dynacast.storage.distributed.readAfterWriteSupport:`** Enables **`read-after-write`** consistency (See [here](https://en.wikipedia.org/wiki/Consistency_model#Read-your-writes_Consistency) and [here](http://www.dbms2.com/2010/05/01/ryw-read-your-writes-consistency) for more details) support. Default value is `false`.
-* **`dynacast.storage.distributed.clusterHostingOnAWS:`** Enables AWS based discovery support when there are multiple nodes with **DynaCase**. By this property enabled, **Hazelcast** instances, which are used by **DynaCast** internally for caching data, discovers each other (IPs of other nodes) through AWS API and forms a cluster. Default value is `false`.
-* **`dynacast.storage.distributed.clusterRegionOnAWS:`** Configures name of the AWS region where the application, which contains and uses **DynaCast**, is deployed. Default value is `us-east-1`. So if the application is deployed into another region, this property must be configured accordingly, otherwise nodes cannot discover each other.
+* **`dynacast.readCapacityPerSecond:`** Configures expected maxiumum read capacity to provision required throughput from AWS DynamoDB. Default value is `1000`.
+* **`dynacast.writeCapacityPerSecond:`** Configures expected maxiumum write capacity to provision required throughput from AWS DynamoDB. Default value is `100`.
+* **`dynacast.clusterName:`** Configures name of the cluster. If you want to isolate each cluster from other on the same environment, you must configure cluster name via this property. Default value is `___DynaCastDistStoreCluster___`.
+* **`dynacast.readAfterWriteSupport:`** Enables __read-after-write__ consistency (See [here](https://en.wikipedia.org/wiki/Consistency_model#Read-your-writes_Consistency) and [here](http://www.dbms2.com/2010/05/01/ryw-read-your-writes-consistency) for more details) support. Default value is `false`.
+* **`dynacast.clusterHostingOnAWS:`** Enables AWS based discovery support when there are multiple nodes with DynaCast. By this property enabled, Hazelcast instances, which are used by DynaCast internally for caching data, discovers each other (IPs of other nodes) through AWS API and forms a cluster. Default value is `false`.
+* **`dynacast.clusterRegionOnAWS:`** Configures name of the AWS region where the application, which contains and uses DynaCast, is deployed. Default value is `us-east-1`. So if the application is deployed into another region, this property must be configured accordingly, otherwise nodes cannot discover each other.
+* **`dynacast.clientModeEnabled:`** Enables client mode. DynaCast clients need DynaCast servers to connect. Default value is `false`.
+* **`dynacast.usePublicIPsOnAWS`** By this property enabled, clients connects to servers on AWS through their public IPs (not private). Note that this property is only supported in __client__ mode on __AWS__. So this means that, to use this property, ,`dynacast.clusterRegionOnAWS` and `dynacast.clientModeEnabled` properties must be enabled. Default value is `false`.
 
 These properties can be specified as system property or can be given from **`dynacast.properties`** configuration file.
 
@@ -68,10 +70,10 @@ These properties can be specified as system property or can be given from **`dyn
 The contact point for the user is `DynaCastStorage`. `DynaCastStorage` stores and provides values with their associated keys. 
 
 There are two types of storages at the moment:
-* `DISRIBUTED`: Persists entities to the **AWS DynamoDB** for highly-scalable and high-performance accesses. Also entities are cached in the memory via **Hazelcast** as distributed. When an entry is requested, it is first looked up in the cache. If it is found, returns to the caller, otherwise loads it from **AWS DynamoDB**, puts it into cache (if exists) and then returns to the caller. In here, **Hazelcast** based cache is kept __eventually consistent__ with **AWS DynamoDB** via **AWS DynamoDB Streams** (See [here](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html) for more details).
-* `TIERED`: Keeps entities on local and remote storages. While updating/removing an entity, it is updated/removed on both of local and remote storages. In addition, while getting entity, at first it is looked up on local storage. If it is available, it is directly retrieved from local storage, otherwise it is requested from remote storage. In this mode, `DynaCast` storage instance supports **eventual consistency** model. This means that if an entity is updated/removed in/from remote storage by someone, local storage is updated eventually. In this context, there is __monotonic read consistency__ but no __linearizability__. See [here](https://en.wikipedia.org/wiki/Consistency_model) and [here](https://aphyr.com/posts/313-strong-consistency-models) for more details.
+* `DISRIBUTED`: Persists entities to the AWS DynamoDB for highly-scalable and high-performance accesses. Also entities are cached in the memory via Hazelcast as distributed. When an entry is requested, it is first looked up in the cache. If it is found, returns to the caller, otherwise loads it from AWS DynamoDB, puts it into cache (if exists) and then returns to the caller. In here, Hazelcast based cache is kept __eventually consistent__ with AWS DynamoDB via AWS DynamoDB Streams (See [here](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html) for more details).
+* `TIERED`: Keeps entities on local and remote storages. While updating/removing an entity, it is updated/removed on both of local and remote storages. In addition, while getting entity, at first it is looked up on local storage. If it is available, it is directly retrieved from local storage, otherwise it is requested from remote storage. In this mode, `DynaCastStorage` instance supports __eventual consistency__ model. This means that if an entity is updated/removed in/from remote storage by someone, local storage is updated eventually. In this context, there is __monotonic read consistency__ but no __linearizability__. See [here](https://en.wikipedia.org/wiki/Consistency_model) and [here](https://aphyr.com/posts/313-strong-consistency-models) for more details.
 
-Here is the basic usage of **DynaCast**:
+Here is the basic usage of DynaCast:
 
 ``` java
         DynaCastStorage<Integer, String> storage = 
