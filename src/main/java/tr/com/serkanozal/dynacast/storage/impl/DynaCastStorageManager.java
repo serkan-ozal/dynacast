@@ -65,6 +65,8 @@ public final class DynaCastStorageManager {
     static final boolean DEFAULT_READ_AFTER_WRITE_SUPPORT;        
     static final long DEFAULT_READ_CAPACITY_PER_SECOND;
     static final long DEFAULT_WRITE_CAPACITY_PER_SECOND;
+    static final int DEFAULT_LOCAL_CACHE_CAPACITY;
+    static final int DEFAULT_DISTRIBUTED_CACHE_CAPACITY;
     
     private static final Logger LOGGER = Logger.getLogger(DynaCastDistributedStorage.class);
     private static final ConcurrentMap<String, DynaCastStorage> STORAGE_MAP = 
@@ -128,6 +130,23 @@ public final class DynaCastStorageManager {
                 DEFAULT_WRITE_CAPACITY_PER_SECOND = Long.parseLong(writeCapacityPerSecondProp);
             } else {
                 DEFAULT_WRITE_CAPACITY_PER_SECOND = 100;
+            }
+            
+            //////////////////////////////////////////////////////////////
+            
+            String localCacheCapacityProp = 
+                    DYNACAST_PROPS.getProperty(DynaCastConfigs.LOCAL_CACHE_CAPACITY);
+            if (localCacheCapacityProp != null) {
+                DEFAULT_LOCAL_CACHE_CAPACITY = Integer.parseInt(localCacheCapacityProp);
+            } else {
+                DEFAULT_LOCAL_CACHE_CAPACITY = -1;
+            }
+            String distributedCacheCapacityProp = 
+                    DYNACAST_PROPS.getProperty(DynaCastConfigs.DISTRIBUTED_CACHE_CAPACITY);
+            if (distributedCacheCapacityProp != null) {
+                DEFAULT_DISTRIBUTED_CACHE_CAPACITY = Integer.parseInt(distributedCacheCapacityProp);
+            } else {
+                DEFAULT_DISTRIBUTED_CACHE_CAPACITY = -1;
             }
             
             //////////////////////////////////////////////////////////////

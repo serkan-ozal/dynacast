@@ -36,7 +36,8 @@ class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
     DynaCastTieredStorage(String name, DynaCastStorageType storageType, Map<String, Object> properties) {
         this.name = name;
         this.nearCache = 
-                new NearCache(new DynaCastLocalStorage<K, V>(name));
+                new NearCache(
+                        new DynaCastLocalStorage<K, V>(name, properties));
         this.distributedStorage = 
                 new DynaCastDistributedStorage<K, V>(
                         name, 
@@ -193,6 +194,11 @@ class DynaCastTieredStorage<K, V> implements DynaCastStorage<K, V> {
     @Override
     public DynaCastStorageType getType() {
         return DynaCastStorageType.TIERED;
+    }
+    
+    @Override
+    public boolean isAvailable() {
+        return !destroyed;
     }
 
     @Override

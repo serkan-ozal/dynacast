@@ -33,4 +33,8 @@ public interface DynaCastConfigs {
     
     String CLIEN_MODE_ENABLED = "dynacast.clientModeEnabled";
     
+    String LOCAL_CACHE_CAPACITY = "dynacast.localCacheCapacity";
+    
+    String DISTRIBUTED_CACHE_CAPACITY = "dynacast.distributedCacheCapacity";
+    
 }

@@ -19,6 +19,7 @@ public interface DynaCastStorage<K, V> {
 
     String getName();
     DynaCastStorageType getType();
+    boolean isAvailable();
     
     V get(K key);
     V refresh(K key);

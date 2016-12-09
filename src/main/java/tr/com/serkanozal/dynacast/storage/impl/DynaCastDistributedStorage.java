@@ -86,6 +86,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.FastInput;
 import com.esotericsoftware.kryo.io.FastOutput;
 import com.hazelcast.config.CacheConfig;
+import com.hazelcast.config.EvictionConfig;
+import com.hazelcast.config.EvictionConfig.MaxSizePolicy;
 import com.hazelcast.core.IExecutorService;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.PartitionService;
@@ -101,6 +103,7 @@ class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
             };
     
     private final String name;
+    private final int capacity;
     
     private final String dataCacheName;
     private final Cache<K, V> dataCache;
@@ -178,6 +181,18 @@ class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
         
         /////////////////////////////////////////////////////////////////
         
+        if (properties != null) {
+            if (properties.get(DynaCastConfigs.DISTRIBUTED_CACHE_CAPACITY) != null) {
+                capacity = Integer.parseInt(properties.get(DynaCastConfigs.DISTRIBUTED_CACHE_CAPACITY).toString());
+            } else {
+                capacity = DynaCastStorageManager.DEFAULT_DISTRIBUTED_CACHE_CAPACITY;
+            }
+        } else {
+            capacity = DynaCastStorageManager.DEFAULT_DISTRIBUTED_CACHE_CAPACITY;
+        }
+        
+        /////////////////////////////////////////////////////////////////
+        
         if (DynaCastStorageManager.CLIEN_MODE_ENABLED) {
             IExecutorService executorService = 
                     DynaCastStorageManager.HZ.getExecutorService("dynacast");
@@ -194,6 +209,14 @@ class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
 
         Cache<K, V> cache;
         CacheConfig<K, V> cacheConfig = new CacheConfig<K, V>(dataCacheName);
+        if (capacity > 0) {
+            EvictionConfig evictionConfig = 
+                    new EvictionConfig(
+                            capacity, 
+                            MaxSizePolicy.ENTRY_COUNT, 
+                            EvictionConfig.DEFAULT_EVICTION_POLICY);
+            cacheConfig.setEvictionConfig(evictionConfig);
+        }
         cacheConfig.setCacheLoaderFactory(new DynamodbAwareCacheLoaderFactory<K, V>(dataTableName));
         try {
             cache = DynaCastStorageManager.CM.getCache(dataCacheName);
@@ -714,6 +737,11 @@ class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
     @Override
     public DynaCastStorageType getType() {
         return DynaCastStorageType.DISTRIBUTED;
+    }
+    
+    @Override
+    public boolean isAvailable() {
+        return !destroyed;
     }
 
     @Override
