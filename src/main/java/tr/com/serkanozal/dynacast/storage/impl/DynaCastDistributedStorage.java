@@ -502,6 +502,7 @@ class DynaCastDistributedStorage<K, V> implements DynaCastStorage<K, V> {
                     return;
                 } catch (Throwable t) {
                     if (t instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
                         return;
                     }
                     LOGGER.error("Error occurred while processing stream events!", t);
