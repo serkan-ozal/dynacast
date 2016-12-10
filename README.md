@@ -100,7 +100,7 @@ Here is the sample usage of **DynaCast**:
 
 ``` java
         DynaCastStorage<Integer, String> storage = 
-                Dynacast.getOrCreateStorage("MyStorage", DynaCastStorageType.TIERED); // or DynaCastStorageType.DISTRIBUTED
+                DynaCast.getOrCreateStorage("MyStorage", DynaCastStorageType.TIERED);
         
         ///////////////////////////////////////////////////////////////////////
         
@@ -112,7 +112,7 @@ Here is the sample usage of **DynaCast**:
         
         System.out.println("================================");
         for (int i = 0; i < 10; i++) {
-            System.out.println("\t- [i]: " + storage.get(i));
+            System.out.println("\t- [" + i + "]: " + storage.get(i));
         }
         System.out.println("================================\n");
         
@@ -127,7 +127,7 @@ Here is the sample usage of **DynaCast**:
         
         System.out.println("================================");
         for (int i = 0; i < 10; i++) {
-            System.out.println("\t- [i]: " + storage.get(i));
+            System.out.println("\t- [" + i + "]: " + storage.get(i));
         }
         System.out.println("================================\n");
 
@@ -142,7 +142,7 @@ Here is the sample usage of **DynaCast**:
         
         System.out.println("================================");
         for (int i = 0; i < 10; i++) {
-            System.out.println("\t- [i]: " + storage.get(i));
+            System.out.println("\t- [" + i + "]: " + storage.get(i));
         }
         System.out.println("================================\n");
         
