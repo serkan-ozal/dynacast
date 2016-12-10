@@ -62,7 +62,7 @@ public final class DynaCastStorageManager {
     static final HazelcastInstance HZ;
     static final CacheManager CM;
     static final AmazonDynamoDB DYNAMODB;
-    static final boolean DEFAULT_READ_AFTER_WRITE_SUPPORT;        
+    static final boolean DEFAULT_READ_YOUR_WRITE_SUPPORT;        
     static final long DEFAULT_READ_CAPACITY_PER_SECOND;
     static final long DEFAULT_WRITE_CAPACITY_PER_SECOND;
     static final int DEFAULT_LOCAL_CACHE_CAPACITY;
@@ -107,13 +107,13 @@ public final class DynaCastStorageManager {
             
             //////////////////////////////////////////////////////////////
             
-            boolean readAfterWriteSupport = false;
-            String readAfterWriteSupportProp = 
-                    DYNACAST_PROPS.getProperty(DynaCastConfigs.READ_AFTER_WRITE_SUPPORT);
-            if (readAfterWriteSupportProp != null) {
-                readAfterWriteSupport = Boolean.parseBoolean(readAfterWriteSupportProp);
+            boolean readYourWriteSupport = false;
+            String readYourWriteSupportProp = 
+                    DYNACAST_PROPS.getProperty(DynaCastConfigs.READ_YOUR_WRITE_SUPPORT);
+            if (readYourWriteSupportProp != null) {
+                readYourWriteSupport = Boolean.parseBoolean(readYourWriteSupportProp);
             }
-            DEFAULT_READ_AFTER_WRITE_SUPPORT = readAfterWriteSupport;
+            DEFAULT_READ_YOUR_WRITE_SUPPORT = readYourWriteSupport;
             
             //////////////////////////////////////////////////////////////
             

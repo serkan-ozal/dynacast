@@ -23,7 +23,7 @@ public interface DynaCastConfigs {
     
     String CLUSTER_NAME = "dynacast.clusterName";
     
-    String READ_AFTER_WRITE_SUPPORT = "dynacast.readAfterWriteSupport";
+    String READ_YOUR_WRITE_SUPPORT = "dynacast.readYourWriteSupport";
     
     String CLUSTER_HOSTING_ON_AWS = "dynacast.clusterHostingOnAWS";
     

@@ -19,7 +19,7 @@ public class DynaCastDemo {
         
         System.out.println("================================");
         for (int i = 0; i < 10; i++) {
-            System.out.println("\t- [i]: " + storage.get(i));
+            System.out.println("\t- [" + i + "]: " + storage.get(i));
         }
         System.out.println("================================\n");
         
@@ -34,7 +34,7 @@ public class DynaCastDemo {
         
         System.out.println("================================");
         for (int i = 0; i < 10; i++) {
-            System.out.println("\t- [i]: " + storage.get(i));
+            System.out.println("\t- [" + i + "]: " + storage.get(i));
         }
         System.out.println("================================\n");
 
@@ -49,7 +49,7 @@ public class DynaCastDemo {
         
         System.out.println("================================");
         for (int i = 0; i < 10; i++) {
-            System.out.println("\t- [i]: " + storage.get(i));
+            System.out.println("\t- [" + i + "]: " + storage.get(i));
         }
         System.out.println("================================\n");
         

@@ -38,6 +38,17 @@ public class DynaCast {
             DynaCastStorageType storageType) {
         return DynaCastStorageManager.getOrCreateStorage(storageName, storageType);
     }
+    
+    public static <K, V> DynaCastStorage<K, V> getOrCreateStorage(
+            String storageName, 
+            DynaCastStorageType storageType,
+            Map<String, Object> properties) {
+        return DynaCastStorageManager.getOrCreateStorage(storageName, storageType, properties);
+    }
+    
+    public static <K, V> DynaCastStorage<K, V> deleteStorage(String storageName, boolean destroy) {
+        return DynaCastStorageManager.deleteStorage(storageName, destroy);
+    }
 	
     @SuppressWarnings("rawtypes")
     public static void main(String[] args) {
