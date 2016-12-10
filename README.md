@@ -71,6 +71,9 @@ These properties can be specified as system property or can be given from **`dyn
 
 4. Client-Server Architecture
 ==============
+By default, **DynaCast** runs in embedded mode. This means that even though data is persisted externally on AWS DynamoDB, distributed cache data is stored in memory as partitioned on all application nodes (which are using **DynaCast**) with Hazelcast. This architecture is called *embedded architecture*.
+
+However, you may also want to have a **DynaCast** cluster which caches data as partitioned on all server nodes and clients access data through server nodes. This architecture is called *client-server architecture*. In this architecture, clients don't cache (except `TIERED` storage. Because there is local cache, which is eventually consistent with remote and global `DISTRIBUTED` storage, in `TIERED` storage) data but server nodes.
 
 5. Usage
 ==============
